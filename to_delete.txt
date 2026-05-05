@@ -1,0 +1,5 @@
+ARCHITECTURE_PIPELINE.md
+deploy.md
+env_change_deploy.md
+README.md
+api/.env
