@@ -182,7 +182,7 @@ vercel env ls
 Run from this folder:
 
 ```powershell
-cd C:\Users\ihash\Desktop\automation\CSA-demo\meta-setup
+cd C:\Users\ihash\Desktop\CSA-Demo
 vercel --prod --yes
 ```
 
@@ -217,6 +217,7 @@ WhatsApp flow failed
 
 ```powershell
 node --check api\webhook.js
+Get-ChildItem api\lib -Recurse -Filter *.js | ForEach-Object { node --check $_.FullName }
 ```
 
 3. Deploy:

@@ -11,13 +11,14 @@ The local file `api/.env` is not deployed automatically. For this project it is 
 Run from:
 
 ```powershell
-cd C:\Users\ihash\Desktop\automation\CSA-demo\meta-setup
+cd C:\Users\ihash\Desktop\CSA-Demo
 ```
 
 1. Validate the serverless file:
 
 ```powershell
 node --check api\webhook.js
+Get-ChildItem api\lib -Recurse -Filter *.js | ForEach-Object { node --check $_.FullName }
 ```
 
 2. Replace the production token in Vercel from the local file:

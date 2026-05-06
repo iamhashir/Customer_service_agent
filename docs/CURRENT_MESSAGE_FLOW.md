@@ -1,5 +1,7 @@
 # Current Application and AI Interaction Flow
 
+![Message Flow Sequence](message-flow.png)
+
 This document describes the current user-facing conversation style for the WhatsApp assistant.
 
 ## Brand Direction
@@ -32,12 +34,39 @@ Main catalog options:
 
 ## Core Flow Shape
 
-```text
-Interest
--> Category or recommendation path
--> Product overview
--> Technical details or availability
--> Order support or specialist handoff
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as WhatsApp User
+    participant A as CSA Assistant
+    participant S as Specialist
+
+    U->>A: "Hi" / Open Menu
+    A-->>U: Welcome + Main Categories
+    
+    U->>A: Selects Category (e.g. Audio)
+    A-->>U: Curated Collection Intro + Explore Action
+    
+    U->>A: Explore Models
+    A-->>U: Recommended Models / Product List
+    
+    U->>A: Selects Product (e.g. P20i)
+    A-->>U: Hero Image + Guided Overview
+    
+    rect rgb(139, 92, 246, 0.1)
+        Note over U,A: Product Consultation
+        U->>A: Technical Details / Check Availability
+        A-->>U: Detailed Specs / Live Pricing
+    end
+    
+    U->>A: Order Now
+    A-->>U: Guided Checkout (Capture Details)
+    
+    opt Escalation
+        U->>A: Talk to Specialist
+        A->>S: Handoff Triggered
+        S-->>U: "Hello, how can I help?"
+    end
 ```
 
 ## Category Experience
