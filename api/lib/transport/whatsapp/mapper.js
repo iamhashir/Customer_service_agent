@@ -46,6 +46,14 @@ export const mapUiNodeToWhatsAppMessage = (node) => {
       type: 'interactive',
       interactive: {
         type: 'button',
+        ...(node.imageUrl
+          ? {
+              header: {
+                type: 'image',
+                image: {link: node.imageUrl},
+              },
+            }
+          : {}),
         body: {
           text: clampText(body, WHATSAPP_LIMITS.body),
         },

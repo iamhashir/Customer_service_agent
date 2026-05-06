@@ -46,6 +46,42 @@ export const shoppingNeedProfiles = {
       'For bass-focused listening, we usually start with drivers tuned for stronger low-end response.',
     recommendedProductIds: ['anker_p20i'],
   },
+  gaming: {
+    id: 'gaming',
+    categoryId: 'computing',
+    title: 'gaming',
+    matchTerms: ['gaming', 'game', 'games', 'fps', 'gta', 'fortnite', 'valorant'],
+    intro:
+      'For gaming, we focus on GPU power, refresh rate, and fast storage.',
+    recommendedProductIds: ['pc', 'gaming_laptop', 'gaming_monitor', 'gaming_keyboard_mouse'],
+  },
+  office: {
+    id: 'office',
+    categoryId: 'computing',
+    title: 'office and business use',
+    matchTerms: ['office', 'business', 'accounting', 'shop', 'work', 'typing'],
+    intro:
+      'For office use, reliability, quiet operation, and value matter most.',
+    recommendedProductIds: ['office_laptop', 'budget_desktop'],
+  },
+  student: {
+    id: 'student',
+    categoryId: 'computing',
+    title: 'students and university',
+    matchTerms: ['student', 'university', 'college', 'school', 'study', 'uni'],
+    intro:
+      'For students, we recommend portability, battery life, and enough power for assignments and light gaming.',
+    recommendedProductIds: ['office_laptop', 'gaming_laptop', 'anker_p20i'],
+  },
+  networking: {
+    id: 'networking',
+    categoryId: 'audio',
+    title: 'networking and WiFi',
+    matchTerms: ['wifi', 'router', 'internet', 'network', 'networking', 'signal', 'connection'],
+    intro:
+      'For networking, we recommend routers with strong coverage and modern WiFi 6 support.',
+    recommendedProductIds: ['wifi_router'],
+  },
 };
 
 export const getRecommendationProfile = (profileId) =>

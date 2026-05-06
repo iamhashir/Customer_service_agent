@@ -1,34 +1,19 @@
 import {copyDeck, buttonLabels, footerCopy} from '../content/labels.js';
-import {uiActionList, uiList} from './ui-types.js';
+import {uiActionList, uiList, uiCard} from './ui-types.js';
 
 const formatList = (items) => items.map((item) => `- ${item}`).join('\n');
 
 export const renderMainMenu = ({categories}) => [
-  uiList({
-    header: copyDeck.welcomeHeader,
-    body: copyDeck.welcomeBody,
+  uiCard({
+    imageUrl: 'https://meta-setup.vercel.app/assets/al-mafnood-logo.png',
+    body: `*${copyDeck.welcomeHeader}*\n\n${copyDeck.welcomeBody}`,
     footer: footerCopy.welcome,
-    buttonLabel: buttonLabels.browseCatalog,
-    sections: [
-      {
-        title: 'Categories',
-        rows: categories.map((category) => ({
-          id: `category.view:${category.id}`,
-          title: category.label,
-          description: category.menuDescription,
-        })),
-      },
-      {
-        title: 'Specialist Support',
-        rows: [
-          {
-            id: 'handoff.start',
-            title: buttonLabels.talkToSpecialist,
-            description:
-              'Private guidance for recommendations, pricing, and business enquiries',
-          },
-        ],
-      },
+    actions: [
+      ...categories.slice(0, 2).map((category) => ({
+        id: `category.view:${category.id}`,
+        label: category.shortLabel,
+      })),
+      {id: 'handoff.start', label: buttonLabels.talkToSpecialist},
     ],
   }),
 ];

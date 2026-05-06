@@ -9,12 +9,13 @@ export const uiImage = ({url, caption = ''}) => ({
   caption,
 });
 
-export const uiCard = ({title, body, actions = [], footer = ''}) => ({
+export const uiCard = ({title, body, actions = [], footer = '', imageUrl = null}) => ({
   type: 'card',
   title,
   body,
   actions,
   footer,
+  imageUrl,
 });
 
 export const uiActionList = ({body, actions = [], footer = ''}) => ({

@@ -7,23 +7,13 @@ const section = (emoji, title, body) =>
 const formatList = (items) => items.map((item) => `🔹 ${item}`).join('\n');
 
 export const renderProductIntro = ({product, recommendationProfile}) => {
-  const captionLines = [
-    `🖥️ *${product.label}*`,
-    '',
-    product.listDescription,
-    recommendationProfile ? `Recommended for ${recommendationProfile.title}.` : null,
-  ].filter(Boolean);
-
   const introduction = recommendationProfile
     ? `*Selected with ${recommendationProfile.title} in mind.*`
     : '*A strong match based on performance, usability, and overall buying confidence.*';
 
   return [
-    uiImage({
-      url: product.heroImageUrl,
-      caption: captionLines.join('\n'),
-    }),
     uiCard({
+      imageUrl: product.heroImageUrl,
       title: `🖥️🖥️ *${product.label.toUpperCase()}*`,
       body: [
         introduction,
