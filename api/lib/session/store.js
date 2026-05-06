@@ -12,7 +12,7 @@ const buildDefaultSession = (phone) => ({
   lastUpdatedAt: Date.now(),
 });
 
-export const getSession = (phone) => {
+export const getSession = async (phone) => {
   const existing = contactSessions.get(phone);
 
   if (existing) {
@@ -24,10 +24,11 @@ export const getSession = (phone) => {
   return session;
 };
 
-export const saveSession = (phone, updates) => {
+export const saveSession = async (phone, nextSession) => {
   const session = {
-    ...getSession(phone),
-    ...updates,
+    ...buildDefaultSession(phone),
+    ...nextSession,
+    phone,
     lastUpdatedAt: Date.now(),
   };
 
@@ -35,7 +36,7 @@ export const saveSession = (phone, updates) => {
   return session;
 };
 
-export const resetSession = (phone) => {
+export const resetSession = async (phone) => {
   const session = buildDefaultSession(phone);
   contactSessions.set(phone, session);
   return session;

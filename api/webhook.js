@@ -1,5 +1,5 @@
 import {runFlow} from './lib/flow-engine.js';
-import {queueWhatsAppMessage} from './lib/whatsapp.js';
+import {queueWhatsAppMessage} from './lib/transport/whatsapp/sender.js';
 
 const GRAPH_API_VERSION = process.env.WHATSAPP_GRAPH_VERSION || 'v25.0';
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'mytoken';
@@ -22,7 +22,7 @@ const replyToIncomingMessages = async (body) => {
           continue;
         }
 
-        const payloads = runFlow({
+        const payloads = await runFlow({
           to: message.from,
           message,
         });

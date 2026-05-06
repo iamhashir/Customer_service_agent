@@ -28,11 +28,29 @@ Use this when you changed code only.
 
 ```powershell
 node --check api\webhook.js
-node --check api\lib\catalog.js
-node --check api\lib\intent.js
-node --check api\lib\session-store.js
 node --check api\lib\flow-engine.js
-node --check api\lib\whatsapp.js
+node --check api\lib\content\products.js
+node --check api\lib\content\categories.js
+node --check api\lib\content\recommendations.js
+node --check api\lib\content\labels.js
+node --check api\lib\intent\detect.js
+node --check api\lib\session\store.js
+node --check api\lib\conversation\router.js
+node --check api\lib\conversation\dispatcher.js
+node --check api\lib\conversation\handlers\category.js
+node --check api\lib\conversation\handlers\product.js
+node --check api\lib\conversation\handlers\pricing.js
+node --check api\lib\conversation\handlers\order.js
+node --check api\lib\conversation\handlers\handoff.js
+node --check api\lib\renderers\ui-types.js
+node --check api\lib\renderers\category.js
+node --check api\lib\renderers\product.js
+node --check api\lib\renderers\pricing.js
+node --check api\lib\renderers\order.js
+node --check api\lib\renderers\handoff.js
+node --check api\lib\transport\whatsapp\limits.js
+node --check api\lib\transport\whatsapp\mapper.js
+node --check api\lib\transport\whatsapp\sender.js
 ```
 
 ### 2. Deploy production

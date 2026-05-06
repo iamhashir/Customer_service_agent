@@ -81,12 +81,13 @@ api/lib/
 
 Backend modules:
 
-- `catalog.js` product data, media URLs, and audio catalog entries
-- `experience.js` centralized premium button labels, shared copy, and recommendation profiles
-- `intent.js` message and button intent detection
-- `session-store.js` session state per phone number
-- `flow-engine.js` flow routing and reply generation
-- `whatsapp.js` outbound payload builders and send helper
+- `content/` centralized categories, products, labels, and recommendation data
+- `conversation/` router, dispatcher, and focused handlers
+- `intent/detect.js` domain intent detection
+- `renderers/` platform-agnostic UI node builders
+- `session/store.js` session state per phone number
+- `transport/whatsapp/` mapper, limits, and sender
+- `flow-engine.js` orchestration only
 
 ```text
 api/.env
@@ -100,19 +101,36 @@ Local secret file. It is ignored by git and must not be committed.
 api/
   webhook.js
   lib/
+    content/
+    conversation/
+    intent/
+    renderers/
+    session/
+    transport/
+    flow-engine.js
 assets/
   anker-p20i.jpg
   headphones.jpg
   open-ear-bone-conduction.jpg
+  true-nort-hypervault-obsidian-white-pc.jpg
   truefree-open-ear.jpg
 docs/
   ARCHITECTURE_PIPELINE.md
+  architecture.md
+  state-machine.md
   deploy.md
   env_change_deploy.md
 README.md
 ```
 
 Use `docs/` for deployment notes and operational runbooks. Keep the root limited to core folders and top-level project metadata.
+
+Architecture reading order:
+
+- `docs/architecture.md`
+- `docs/state-machine.md`
+- `docs/CURRENT_MESSAGE_FLOW.md`
+- `docs/deploy.md`
 
 ## Environment Variables
 
@@ -139,6 +157,12 @@ step = start | category_* | product_selected | specs | pricing | order_capture |
 category = computing | audio
 product = pc | anker_p20i | bone_conduction_open_ear | truefree_open_ear
 shopperNeed = null | gym | running | calls | travel | bass
+```
+
+Conversation output is now built in two stages:
+
+```text
+handlers -> UI nodes -> WhatsApp mapper -> payloads
 ```
 
 Current limitation:
