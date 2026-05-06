@@ -26,7 +26,7 @@ export const productCatalog = {
     shortLabel: 'Headphones',
     summary: 'Headphones lineup from budget wireless to premium noise cancelling.',
     heroImageUrl:
-      'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=1200&q=80',
+      'https://m.media-amazon.com/images/I/6196rZ67rvL._AC_SX522_.jpg',
     listDescription: 'Wireless, ANC, and budget picks',
     specs: [
       'Premium: Sony WH-1000XM5',

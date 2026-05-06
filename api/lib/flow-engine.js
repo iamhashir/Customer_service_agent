@@ -57,7 +57,10 @@ const maybeBuildHeroImage = (product) =>
   product.heroImageUrl
     ? imageMessage({
         link: product.heroImageUrl,
-        caption: `${product.label}\n${product.summary}`,
+        caption:
+          product.id === 'headphones'
+            ? `${product.label}\n${product.summary}\n\nSpecs:\n${formatProductSpecs(product)}`
+            : `${product.label}\n${product.summary}`,
       })
     : null;
 
