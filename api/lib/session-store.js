@@ -6,6 +6,7 @@ const buildDefaultSession = (phone) => ({
   step: 'start',
   category: null,
   product: null,
+  shopperNeed: null,
   handoffRequested: false,
   orderDraft: null,
   lastUpdatedAt: Date.now(),

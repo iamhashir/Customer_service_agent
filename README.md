@@ -16,13 +16,13 @@ Subscribed field: messages
 
 ## Current Flow
 
-Any normal user message opens a guided catalog menu.
+Any normal user message opens a guided premium catalog menu.
 
 ```text
 Catalog menu
 -> Gaming PCs
--> Audio products
--> Talk to sales
+-> Audio Collection
+-> Talk to Specialist
 ```
 
 The webhook keeps a lightweight in-memory session per phone number so the next reply can be routed by `flow`, `step`, and `product`.
@@ -34,7 +34,7 @@ Product steps are designed to avoid message spam:
 
 ```text
 1. Optional hero image for the selected product
-2. One guided interactive message for the next decision
+2. One structured product card with premium action labels
 ```
 
 Human handoff keeps a separate CTA URL button to `https://magnotek.vercel.app`.
@@ -82,6 +82,7 @@ api/lib/
 Backend modules:
 
 - `catalog.js` product data, media URLs, and audio catalog entries
+- `experience.js` centralized premium button labels, shared copy, and recommendation profiles
 - `intent.js` message and button intent detection
 - `session-store.js` session state per phone number
 - `flow-engine.js` flow routing and reply generation
@@ -99,11 +100,11 @@ Local secret file. It is ignored by git and must not be committed.
 api/
   webhook.js
   lib/
-anker-p20i.jpg
-open-ear-bone-conduction.jpg
-truefree-open-ear.jpg
 assets/
+  anker-p20i.jpg
   headphones.jpg
+  open-ear-bone-conduction.jpg
+  truefree-open-ear.jpg
 docs/
   ARCHITECTURE_PIPELINE.md
   deploy.md
@@ -134,8 +135,10 @@ The v1 backend stores:
 
 ```text
 flow = product_inquiry
-step = start | product_selected | specs | pricing | order_capture | human_handoff
+step = start | category_* | product_selected | specs | pricing | order_capture | human_handoff
+category = computing | audio
 product = pc | anker_p20i | bone_conduction_open_ear | truefree_open_ear
+shopperNeed = null | gym | running | calls | travel | bass
 ```
 
 Current limitation:

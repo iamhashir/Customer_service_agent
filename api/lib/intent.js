@@ -1,4 +1,5 @@
 import {findCategoryByKeyword, findProductByKeyword} from './catalog.js';
+import {detectShoppingNeed} from './experience.js';
 
 const normalizeText = (value) => value?.trim().toLowerCase() || '';
 
@@ -28,17 +29,32 @@ export const detectIntent = (message) => {
     return {type: 'product', value: matchedProduct.id};
   }
 
+  const matchedNeed = detectShoppingNeed(text);
+  if (matchedNeed) {
+    return {type: 'shopping_need', value: matchedNeed.id};
+  }
+
   const matchedCategory = findCategoryByKeyword(text);
   if (matchedCategory) {
     return {type: 'category', value: matchedCategory.id};
   }
 
-  if (text.includes('spec')) {
+  if (includesAny(text, ['spec', 'details', 'technical'])) {
     return {type: 'product_action', value: 'specs'};
   }
 
   if (
-    includesAny(text, ['price', 'cost', 'aed', 'quote', 'how much', 'pricing', 'stock price'])
+    includesAny(text, [
+      'price',
+      'cost',
+      'aed',
+      'quote',
+      'how much',
+      'pricing',
+      'stock price',
+      'availability',
+      'available',
+    ])
   ) {
     return {type: 'product_action', value: 'pricing'};
   }
@@ -51,7 +67,7 @@ export const detectIntent = (message) => {
     return {type: 'decision', value: 'order'};
   }
 
-  if (includesAny(text, ['human', 'agent', 'person', 'sales', 'representative'])) {
+  if (includesAny(text, ['human', 'agent', 'person', 'sales', 'representative', 'specialist'])) {
     return {type: 'decision', value: 'human'};
   }
 

@@ -1,10 +1,12 @@
+import {categoryCatalog, getCategoryById, getProductById, getProductsByCategory} from './catalog.js';
 import {
-  categoryCatalog,
-  getCategoryById,
-  getProductById,
-  getProductsByCategory,
-  productCatalog,
-} from './catalog.js';
+  buildNeedRecommendationLines,
+  buttonLabels,
+  copyDeck,
+  detectShoppingNeed,
+  footerCopy,
+  shoppingNeedProfiles,
+} from './experience.js';
 import {detectIntent} from './intent.js';
 import {getSession, resetSession, saveSession} from './session-store.js';
 import {
@@ -23,15 +25,15 @@ const sessionBaseState = {
   orderDraft: null,
 };
 
+const formatList = (items) => items.map((item) => `- ${item}`).join('\n');
+
 const contactButton = () =>
   urlButtonMessage({
-    body: 'Need a sales specialist, the full catalog, or a custom quote?',
-    footer: 'Magnotek',
-    displayText: 'Contact us',
+    body: copyDeck.specialistBody,
+    footer: footerCopy.specialist,
+    displayText: buttonLabels.connectSpecialist,
     url: 'https://magnotek.vercel.app',
   });
-
-const formatList = (items) => items.map((item) => `- ${item}`).join('\n');
 
 const buildCategoryRows = () =>
   Object.values(categoryCatalog).map((category) => ({
@@ -47,36 +49,51 @@ const buildProductRows = (categoryId) =>
     description: product.listDescription,
   }));
 
+const buildRecommendationBlock = (shopperNeedId) => {
+  const profile = shopperNeedProfiles[shopperNeedId];
+
+  if (!profile) {
+    return '';
+  }
+
+  return [
+    '',
+    'Recommended for you',
+    profile.intro,
+    formatList(buildNeedRecommendationLines(profile)),
+  ].join('\n');
+};
+
 const mainMenu = () =>
   listMessage({
-    headerText: 'CSA Store',
-    body: 'Choose a category and I will guide you to the right product, specs, pricing, and next step.',
-    footer: 'Fast product inquiry',
-    buttonText: 'Browse catalog',
+    headerText: copyDeck.welcomeHeader,
+    body: copyDeck.welcomeBody,
+    footer: footerCopy.welcome,
+    buttonText: buttonLabels.browseCatalog,
     sections: [
       {
-        title: 'Featured categories',
+        title: 'Categories',
         rows: buildCategoryRows(),
       },
       {
-        title: 'Support',
+        title: 'Specialist Support',
         rows: [
           {
             id: 'decision_human',
-            title: 'Talk to sales',
-            description: 'Request a human handoff',
+            title: buttonLabels.talkToSpecialist,
+            description: 'Private guidance for recommendations, pricing, and business enquiries',
           },
         ],
       },
     ],
   });
 
-const categoryMenu = (category) =>
+const categoryMenu = (category, shopperNeedId = null) =>
   listMessage({
-    headerText: category.label,
-    body: category.menuIntro,
-    footer: 'Guided category flow',
-    buttonText: 'Choose product',
+    headerText: category.menuHeader,
+    body: `${category.menuIntro}${buildRecommendationBlock(shopperNeedId)}`,
+    footer: footerCopy.category,
+    buttonText: buttonLabels.browseCatalog,
     sections: [
       {
         title: category.label,
@@ -87,67 +104,90 @@ const categoryMenu = (category) =>
         rows: [
           {
             id: 'main_menu',
-            title: 'Main menu',
-            description: 'Go back to the top-level catalog',
+            title: buttonLabels.mainMenu,
+            description: 'Return to the full catalog',
           },
         ],
       },
     ],
   });
 
-const buildHeroImage = (product) =>
-  product.heroImageUrl
+const buildHeroImage = (product, shopperNeedId = null) => {
+  const profile = shopperNeedProfiles[shopperNeedId];
+  const recommendationLine = profile ? `Recommended for ${profile.title}.` : product.valueLine;
+
+  return product.heroImageUrl
     ? imageMessage({
         link: product.heroImageUrl,
-        caption: `${product.label}\n${product.summary}\n\nHighlights:\n${formatList(product.specs.slice(0, 4))}`,
+        caption: `${product.label}\n${product.summary}\n\n${recommendationLine}`,
       })
     : null;
+};
 
-const buildOverviewBody = (product) =>
-  [
+const buildOverviewBody = (product, shopperNeedId = null) => {
+  const profile = shopperNeedProfiles[shopperNeedId];
+  const recommendationSection = profile
+    ? [`Selected with ${profile.title} in mind.`, '']
+    : [];
+
+  return [
     product.label,
+    '',
     product.summary,
     '',
-    `Best for: ${product.valueLine}`,
+    ...recommendationSection,
+    'Ideal for',
+    formatList(product.idealFor),
     '',
-    `Top benefits:\n${formatList(product.benefits)}`,
+    'Key Features',
+    formatList(product.benefits),
+    '',
+    'What customers usually like',
+    formatList(product.customerLikes),
   ].join('\n');
+};
 
 const buildSpecsBody = (product) =>
   [
-    `Here are the ${product.label.toLowerCase()} specs:`,
+    product.label,
     '',
+    'Technical Details',
     formatList(product.specs),
     '',
-    'Use the next step below to keep the conversation moving.',
+    'If you want pricing and live stock confirmation, use the next step below.',
   ].join('\n');
 
 const buildPricingBody = (product) =>
   [
     product.label,
-    `Price: ${product.priceRange}`,
     '',
-    'Final pricing depends on stock, exact variant, and any bundled accessories.',
+    `Current Price: ${product.priceRange}`,
     '',
-    'Would you like to order now or talk to sales?',
+    'Included',
+    formatList(product.included),
+    '',
+    `Availability: ${product.availabilityNote}`,
+    `Estimated delivery: ${product.deliveryEstimate}`,
   ].join('\n');
 
 const buildOrderBody = (product) =>
   [
-    `Order flow started for ${product.label}.`,
+    'Ready to place your order?',
     '',
-    'Reply with:',
+    `${product.label} is selected for this order request.`,
+    '',
+    'Please reply with:',
     '1. Full name',
-    '2. Location',
+    '2. Delivery location',
     '3. Preferred model or color',
+    '4. Quantity if you need more than one unit',
     '',
-    'I will keep the summary ready for a sales handoff.',
+    'A specialist can finalize the order, confirm stock, and arrange the next step.',
   ].join('\n');
 
-const buildProductMessages = (product) => {
-  const category = getCategoryById(product.category);
+const buildProductMessages = (product, shopperNeedId = null) => {
+  const hero = buildHeroImage(product, shopperNeedId);
   const messages = [];
-  const hero = buildHeroImage(product);
 
   if (hero) {
     messages.push(hero);
@@ -155,24 +195,15 @@ const buildProductMessages = (product) => {
 
   messages.push(
     interactiveMessage({
-      body: buildOverviewBody(product),
-      footer: 'Guided product flow',
-      buttons: [button('action_specs', 'View specs'), button('action_price', 'See price')],
+      body: buildOverviewBody(product, shopperNeedId),
+      footer: footerCopy.product,
+      buttons: [
+        button('action_specs', buttonLabels.technicalDetails),
+        button('action_price', buttonLabels.checkAvailability),
+        button('decision_human', buttonLabels.talkToSpecialist),
+      ],
     }),
   );
-
-  if (category?.compareButtonId && category?.compareButtonLabel) {
-    messages.push(
-      interactiveMessage({
-        body: category.productSelectionText,
-        footer: 'Quick compare',
-        buttons: [
-          button(category.compareButtonId, category.compareButtonLabel),
-          button('decision_human', 'Talk to sales'),
-        ],
-      }),
-    );
-  }
 
   return messages;
 };
@@ -183,36 +214,48 @@ const buildSpecsMessages = (product) => {
   return [
     interactiveMessage({
       body: buildSpecsBody(product),
-      footer: 'Spec summary',
+      footer: footerCopy.specs,
       buttons: [
-        button('action_price', 'See price'),
-        button(category?.compareButtonId || 'main_menu', category?.compareButtonLabel || 'Main menu'),
+        button('action_price', buttonLabels.checkAvailability),
+        button(category?.compareButtonId || 'main_menu', category?.compareButtonLabel || buttonLabels.mainMenu),
+        button('decision_human', buttonLabels.talkToSpecialist),
       ],
     }),
   ];
 };
 
-const buildPricingMessages = (product) => [
-  interactiveMessage({
-    body: buildPricingBody(product),
-    footer: 'Pricing and conversion',
-    buttons: [button('decision_order', 'Order now'), button('decision_human', 'Talk to sales')],
-  }),
-];
+const buildPricingMessages = (product) => {
+  const category = getCategoryById(product.category);
+
+  return [
+    interactiveMessage({
+      body: buildPricingBody(product),
+      footer: footerCopy.pricing,
+      buttons: [
+        button('decision_order', buttonLabels.orderNow),
+        button(category?.compareButtonId || 'main_menu', category?.compareButtonLabel || buttonLabels.mainMenu),
+        button('decision_human', buttonLabels.talkToSpecialist),
+      ],
+    }),
+  ];
+};
 
 const buildOrderMessages = (product) => [
   interactiveMessage({
     body: buildOrderBody(product),
-    footer: 'Order capture',
-    buttons: [button('decision_human', 'Talk to sales'), button('main_menu', 'Main menu')],
+    footer: footerCopy.order,
+    buttons: [
+      button('decision_human', buttonLabels.talkToSpecialist),
+      button('main_menu', buttonLabels.mainMenu),
+    ],
   }),
 ];
 
 const buildHumanMessages = (product) => [
   textMessage({
     body: product
-      ? `Human handoff requested for ${product.label}.\n\nA sales agent should now continue this conversation with the relevant product context.`
-      : 'Human handoff requested.\n\nA sales agent should now continue this conversation and qualify the customer need directly.',
+      ? `You are now being connected to a product specialist for ${product.label}.\n\nThey can help with comparisons, live availability, business purchases, and final order support.`
+      : 'You are now being connected to a product specialist.\n\nThey can help with comparisons, live availability, business purchases, and final order support.',
   }),
   contactButton(),
 ];
@@ -224,14 +267,18 @@ const buildFallbackMessages = (product) => {
     interactiveMessage({
       body: product
         ? `I can keep helping with ${product.label}.\n${category?.fallbackText || 'Choose the next guided step below.'}`
-        : 'Choose a category and I will keep the flow clean and relevant.',
-      footer: 'Guided reply',
+        : 'If you would like, I can take you back to the catalog or connect you with a specialist.',
+      footer: footerCopy.fallback,
       buttons: product
         ? [
-            button('action_specs', 'View specs'),
-            button(category?.compareButtonId || 'main_menu', category?.compareButtonLabel || 'Main menu'),
+            button('action_specs', buttonLabels.technicalDetails),
+            button(category?.compareButtonId || 'main_menu', category?.compareButtonLabel || buttonLabels.mainMenu),
+            button('decision_human', buttonLabels.talkToSpecialist),
           ]
-        : [button('main_menu', 'Main menu'), button('decision_human', 'Talk to sales')],
+        : [
+            button('main_menu', buttonLabels.mainMenu),
+            button('decision_human', buttonLabels.talkToSpecialist),
+          ],
     }),
   ];
 };
@@ -279,20 +326,22 @@ const toPayloads = (to, items) =>
     }),
   );
 
-const saveCategorySession = (to, categoryId) =>
+const saveCategorySession = (to, categoryId, shopperNeedId = null) =>
   saveSession(to, {
     ...sessionBaseState,
     step: `category_${categoryId}`,
     category: categoryId,
     product: null,
+    shopperNeed: shopperNeedId,
   });
 
-const saveProductSession = (to, product) =>
+const saveProductSession = (to, product, shopperNeedId = null) =>
   saveSession(to, {
     ...sessionBaseState,
     step: 'product_selected',
     category: product.category,
     product: product.id,
+    shopperNeed: shopperNeedId,
   });
 
 export const runFlow = ({to, message}) => {
@@ -304,6 +353,19 @@ export const runFlow = ({to, message}) => {
     return toPayloads(to, [mainMenu()]);
   }
 
+  if (detectedIntent.type === 'shopping_need') {
+    const profile = shoppingNeedProfiles[detectedIntent.value];
+    const category = profile ? getCategoryById(profile.categoryId) : null;
+
+    if (!profile || !category) {
+      resetSession(to);
+      return toPayloads(to, [mainMenu()]);
+    }
+
+    saveCategorySession(to, category.id, profile.id);
+    return toPayloads(to, [categoryMenu(category, profile.id)]);
+  }
+
   if (detectedIntent.type === 'category') {
     const category = getCategoryById(detectedIntent.value);
 
@@ -312,8 +374,11 @@ export const runFlow = ({to, message}) => {
       return toPayloads(to, [mainMenu()]);
     }
 
-    saveCategorySession(to, category.id);
-    return toPayloads(to, [categoryMenu(category)]);
+    const inferredNeed = detectShoppingNeed(message?.text?.body?.toLowerCase?.() || '');
+    const shopperNeedId = inferredNeed?.categoryId === category.id ? inferredNeed.id : baseSession.shopperNeed;
+
+    saveCategorySession(to, category.id, shopperNeedId);
+    return toPayloads(to, [categoryMenu(category, shopperNeedId)]);
   }
 
   if (detectedIntent.type === 'product') {
@@ -324,7 +389,7 @@ export const runFlow = ({to, message}) => {
       return toPayloads(to, [mainMenu()]);
     }
 
-    const session = saveProductSession(to, product);
+    const session = saveProductSession(to, product, baseSession.shopperNeed);
 
     console.log(
       JSON.stringify({
@@ -334,10 +399,11 @@ export const runFlow = ({to, message}) => {
         step: session.step,
         category: session.category,
         product: session.product,
+        shopperNeed: session.shopperNeed,
       }),
     );
 
-    return toPayloads(to, buildProductMessages(product));
+    return toPayloads(to, buildProductMessages(product, session.shopperNeed));
   }
 
   if (detectedIntent.type === 'decision' && detectedIntent.value === 'human' && !baseSession.product) {
@@ -346,6 +412,7 @@ export const runFlow = ({to, message}) => {
       step: 'human_handoff',
       category: baseSession.category || null,
       product: null,
+      shopperNeed: baseSession.shopperNeed || null,
       handoffRequested: true,
     });
 
@@ -371,7 +438,7 @@ export const runFlow = ({to, message}) => {
 
   if (detectedIntent.type === 'product_action' && detectedIntent.value === 'compare') {
     const category = getCategoryById(activeProduct.category);
-    return toPayloads(to, [categoryMenu(category)]);
+    return toPayloads(to, [categoryMenu(category, baseSession.shopperNeed)]);
   }
 
   if (detectedIntent.type === 'decision' && detectedIntent.value === 'order') {
