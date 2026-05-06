@@ -6,6 +6,29 @@ export const button = (id, title) => ({
   },
 });
 
+const clampText = (value, maxLength) => {
+  if (!value) {
+    return value;
+  }
+
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  return `${value.slice(0, maxLength - 1).trimEnd()}…`;
+};
+
+const sanitizeListSections = (sections = []) =>
+  sections.map((section) => ({
+    ...section,
+    title: clampText(section.title, 24),
+    rows: (section.rows || []).map((row) => ({
+      ...row,
+      title: clampText(row.title, 24),
+      description: clampText(row.description, 72),
+    })),
+  }));
+
 export const interactiveMessage = ({
   body,
   footer = 'Customer service',
@@ -88,8 +111,8 @@ export const listMessage = ({
       text: footer,
     },
     action: {
-      button: buttonText,
-      sections,
+      button: clampText(buttonText, 20),
+      sections: sanitizeListSections(sections),
     },
   },
 });
