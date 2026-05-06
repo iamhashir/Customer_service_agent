@@ -87,6 +87,23 @@ api/.env
 
 Local secret file. It is ignored by git and must not be committed.
 
+## Project Structure
+
+```text
+api/
+  webhook.js
+  lib/
+assets/
+  headphones.jpg
+docs/
+  ARCHITECTURE_PIPELINE.md
+  deploy.md
+  env_change_deploy.md
+README.md
+```
+
+Use `docs/` for deployment notes and operational runbooks. Keep the root limited to core folders and top-level project metadata.
+
 ## Environment Variables
 
 Required in Vercel production:
