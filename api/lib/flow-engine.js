@@ -1,4 +1,10 @@
-import {productCatalog} from './catalog.js';
+import {
+  categoryCatalog,
+  getCategoryById,
+  getProductById,
+  getProductsByCategory,
+  productCatalog,
+} from './catalog.js';
 import {detectIntent} from './intent.js';
 import {getSession, resetSession, saveSession} from './session-store.js';
 import {
@@ -11,28 +17,46 @@ import {
   urlButtonMessage,
 } from './whatsapp.js';
 
+const sessionBaseState = {
+  flow: 'product_inquiry',
+  handoffRequested: false,
+  orderDraft: null,
+};
+
 const contactButton = () =>
   urlButtonMessage({
-    body: 'Need a sales specialist, full catalog, or a custom quote?',
+    body: 'Need a sales specialist, the full catalog, or a custom quote?',
     footer: 'Magnotek',
     displayText: 'Contact us',
     url: 'https://magnotek.vercel.app',
   });
 
+const formatList = (items) => items.map((item) => `- ${item}`).join('\n');
+
+const buildCategoryRows = () =>
+  Object.values(categoryCatalog).map((category) => ({
+    id: `category_${category.id}`,
+    title: category.label,
+    description: category.menuDescription,
+  }));
+
+const buildProductRows = (categoryId) =>
+  getProductsByCategory(categoryId).map((product) => ({
+    id: `product_${product.id}`,
+    title: product.shortLabel,
+    description: product.listDescription,
+  }));
+
 const mainMenu = () =>
   listMessage({
     headerText: 'CSA Store',
-    body: 'Choose what you want to explore. We will guide you to specs, price, and the next step.',
+    body: 'Choose a category and I will guide you to the right product, specs, pricing, and next step.',
     footer: 'Fast product inquiry',
-    buttonText: 'Browse products',
+    buttonText: 'Browse catalog',
     sections: [
       {
-        title: 'Products',
-        rows: Object.values(productCatalog).map((product) => ({
-          id: `product_${product.id}`,
-          title: product.shortLabel,
-          description: product.listDescription,
-        })),
+        title: 'Featured categories',
+        rows: buildCategoryRows(),
       },
       {
         title: 'Support',
@@ -47,74 +71,130 @@ const mainMenu = () =>
     ],
   });
 
-const formatProductExamples = (product) =>
-  product.examples.map((item) => `- ${item}`).join('\n');
+const categoryMenu = (category) =>
+  listMessage({
+    headerText: category.label,
+    body: category.menuIntro,
+    footer: 'Guided category flow',
+    buttonText: 'Choose product',
+    sections: [
+      {
+        title: category.label,
+        rows: buildProductRows(category.id),
+      },
+      {
+        title: 'Navigation',
+        rows: [
+          {
+            id: 'main_menu',
+            title: 'Main menu',
+            description: 'Go back to the top-level catalog',
+          },
+        ],
+      },
+    ],
+  });
 
-const formatProductSpecs = (product) =>
-  product.specs.map((item) => `- ${item}`).join('\n');
-
-const maybeBuildHeroImage = (product) =>
+const buildHeroImage = (product) =>
   product.heroImageUrl
     ? imageMessage({
         link: product.heroImageUrl,
-        caption:
-          product.id === 'headphones'
-            ? `${product.label}\n${product.summary}\n\nSpecs:\n${formatProductSpecs(product)}`
-            : `${product.label}\n${product.summary}`,
+        caption: `${product.label}\n${product.summary}\n\nHighlights:\n${formatList(product.specs.slice(0, 4))}`,
       })
     : null;
 
-const buildProductSelectedMessages = (product) => {
-  const messages = [];
-  const heroImage = maybeBuildHeroImage(product);
+const buildOverviewBody = (product) =>
+  [
+    product.label,
+    product.summary,
+    '',
+    `Best for: ${product.valueLine}`,
+    '',
+    `Top benefits:\n${formatList(product.benefits)}`,
+  ].join('\n');
 
-  if (heroImage) {
-    messages.push(heroImage);
+const buildSpecsBody = (product) =>
+  [
+    `Here are the ${product.label.toLowerCase()} specs:`,
+    '',
+    formatList(product.specs),
+    '',
+    'Use the next step below to keep the conversation moving.',
+  ].join('\n');
+
+const buildPricingBody = (product) =>
+  [
+    product.label,
+    `Price: ${product.priceRange}`,
+    '',
+    'Final pricing depends on stock, exact variant, and any bundled accessories.',
+    '',
+    'Would you like to order now or talk to sales?',
+  ].join('\n');
+
+const buildOrderBody = (product) =>
+  [
+    `Order flow started for ${product.label}.`,
+    '',
+    'Reply with:',
+    '1. Full name',
+    '2. Location',
+    '3. Preferred model or color',
+    '',
+    'I will keep the summary ready for a sales handoff.',
+  ].join('\n');
+
+const buildProductMessages = (product) => {
+  const category = getCategoryById(product.category);
+  const messages = [];
+  const hero = buildHeroImage(product);
+
+  if (hero) {
+    messages.push(hero);
   }
 
   messages.push(
     interactiveMessage({
-      body:
-        `${product.label}\n` +
-        `${product.summary}\n\n` +
-        `Popular picks:\n${formatProductExamples(product)}\n\n` +
-        'Choose the next step.',
+      body: buildOverviewBody(product),
       footer: 'Guided product flow',
       buttons: [button('action_specs', 'View specs'), button('action_price', 'See price')],
     }),
   );
 
+  if (category?.compareButtonId && category?.compareButtonLabel) {
+    messages.push(
+      interactiveMessage({
+        body: category.productSelectionText,
+        footer: 'Quick compare',
+        buttons: [
+          button(category.compareButtonId, category.compareButtonLabel),
+          button('decision_human', 'Talk to sales'),
+        ],
+      }),
+    );
+  }
+
   return messages;
 };
 
 const buildSpecsMessages = (product) => {
-  const body =
-    `Here are the ${product.label.toLowerCase()} specs:\n\n` +
-    `${formatProductSpecs(product)}\n\n` +
-    'Built for smooth performance, fast loading, and straightforward buying decisions.';
+  const category = getCategoryById(product.category);
 
   return [
     interactiveMessage({
-      body:
-        product.id === 'pc'
-          ? `${body}\n\nWant pricing now or explore headphones as an add-on?`
-          : `${body}\n\nWant pricing now or speak to sales?`,
+      body: buildSpecsBody(product),
       footer: 'Spec summary',
-      buttons:
-        product.id === 'pc'
-          ? [button('action_price', 'See price'), button('product_headphones', 'Headphones')]
-          : [button('action_price', 'See price'), button('decision_human', 'Talk to sales')],
+      buttons: [
+        button('action_price', 'See price'),
+        button(category?.compareButtonId || 'main_menu', category?.compareButtonLabel || 'Main menu'),
+      ],
     }),
   ];
 };
 
 const buildPricingMessages = (product) => [
   interactiveMessage({
-    body:
-      `${product.label}\n` +
-      `Price range: ${product.priceRange}\n\n` +
-      'Final price depends on the exact model, stock, and bundled accessories.\n\n' +
-      'Would you like to order now or talk to a human?',
+    body: buildPricingBody(product),
     footer: 'Pricing and conversion',
     buttons: [button('decision_order', 'Order now'), button('decision_human', 'Talk to sales')],
   }),
@@ -122,13 +202,7 @@ const buildPricingMessages = (product) => [
 
 const buildOrderMessages = (product) => [
   interactiveMessage({
-    body:
-      `Order flow started for ${product.label}.\n\n` +
-      'Reply with:\n' +
-      '1. Full name\n' +
-      '2. Location\n' +
-      '3. Preferred model\n\n' +
-      'We will prepare the order summary and payment step.',
+    body: buildOrderBody(product),
     footer: 'Order capture',
     buttons: [button('decision_human', 'Talk to sales'), button('main_menu', 'Main menu')],
   }),
@@ -136,30 +210,39 @@ const buildOrderMessages = (product) => [
 
 const buildHumanMessages = (product) => [
   textMessage({
-    body:
-      `Human handoff requested for ${product.label}.\n\n` +
-      'A sales agent should now be assigned. The bot should pause automation for this contact until the handoff is resolved.',
+    body: product
+      ? `Human handoff requested for ${product.label}.\n\nA sales agent should now continue this conversation with the relevant product context.`
+      : 'Human handoff requested.\n\nA sales agent should now continue this conversation and qualify the customer need directly.',
   }),
   contactButton(),
 ];
 
-const buildFallbackMessages = (session) => [
-  interactiveMessage({
-    body:
-      `I can help with ${session.product ? productCatalog[session.product].label : 'products'}.\n` +
-      'Use one of the guided options so I can keep the flow clean and relevant.',
-    footer: 'Guided reply',
-    buttons: [button('action_specs', 'View specs'), button('action_price', 'See price')],
-  }),
-];
+const buildFallbackMessages = (product) => {
+  const category = product ? getCategoryById(product.category) : null;
+
+  return [
+    interactiveMessage({
+      body: product
+        ? `I can keep helping with ${product.label}.\n${category?.fallbackText || 'Choose the next guided step below.'}`
+        : 'Choose a category and I will keep the flow clean and relevant.',
+      footer: 'Guided reply',
+      buttons: product
+        ? [
+            button('action_specs', 'View specs'),
+            button(category?.compareButtonId || 'main_menu', category?.compareButtonLabel || 'Main menu'),
+          ]
+        : [button('main_menu', 'Main menu'), button('decision_human', 'Talk to sales')],
+    }),
+  ];
+};
 
 const mapButtonIntent = (value) => {
-  if (value === 'product_pc') {
-    return {type: 'product', value: 'pc'};
+  if (value.startsWith('product_')) {
+    return {type: 'product', value: value.replace('product_', '')};
   }
 
-  if (value === 'product_headphones' || value === 'show_headphones') {
-    return {type: 'product', value: 'headphones'};
+  if (value.startsWith('category_')) {
+    return {type: 'category', value: value.replace('category_', '')};
   }
 
   if (value === 'action_specs') {
@@ -188,30 +271,60 @@ const mapButtonIntent = (value) => {
 const normalizeIntent = (intent) =>
   intent.type === 'button' ? mapButtonIntent(intent.value) : intent;
 
+const toPayloads = (to, items) =>
+  items.map((item) =>
+    toOutboundPayload({
+      to,
+      message: item,
+    }),
+  );
+
+const saveCategorySession = (to, categoryId) =>
+  saveSession(to, {
+    ...sessionBaseState,
+    step: `category_${categoryId}`,
+    category: categoryId,
+    product: null,
+  });
+
+const saveProductSession = (to, product) =>
+  saveSession(to, {
+    ...sessionBaseState,
+    step: 'product_selected',
+    category: product.category,
+    product: product.id,
+  });
+
 export const runFlow = ({to, message}) => {
   const baseSession = getSession(to);
   const detectedIntent = normalizeIntent(detectIntent(message));
 
   if (detectedIntent.type === 'navigation' && detectedIntent.value === 'main_menu') {
     resetSession(to);
+    return toPayloads(to, [mainMenu()]);
+  }
 
-    return [mainMenu()].map((item) =>
-      toOutboundPayload({
-        to,
-        message: item,
-      }),
-    );
+  if (detectedIntent.type === 'category') {
+    const category = getCategoryById(detectedIntent.value);
+
+    if (!category) {
+      resetSession(to);
+      return toPayloads(to, [mainMenu()]);
+    }
+
+    saveCategorySession(to, category.id);
+    return toPayloads(to, [categoryMenu(category)]);
   }
 
   if (detectedIntent.type === 'product') {
-    const product = productCatalog[detectedIntent.value];
-    const session = saveSession(to, {
-      flow: 'product_inquiry',
-      step: 'product_selected',
-      product: product.id,
-      handoffRequested: false,
-      orderDraft: null,
-    });
+    const product = getProductById(detectedIntent.value);
+
+    if (!product) {
+      resetSession(to);
+      return toPayloads(to, [mainMenu()]);
+    }
+
+    const session = saveProductSession(to, product);
 
     console.log(
       JSON.stringify({
@@ -219,51 +332,46 @@ export const runFlow = ({to, message}) => {
         phone: to,
         flow: session.flow,
         step: session.step,
+        category: session.category,
         product: session.product,
       }),
     );
 
-    return buildProductSelectedMessages(product).map((item) =>
-      toOutboundPayload({
-        to,
-        message: item,
-      }),
-    );
+    return toPayloads(to, buildProductMessages(product));
   }
 
-  const activeProduct = baseSession.product ? productCatalog[baseSession.product] : null;
+  if (detectedIntent.type === 'decision' && detectedIntent.value === 'human' && !baseSession.product) {
+    saveSession(to, {
+      ...sessionBaseState,
+      step: 'human_handoff',
+      category: baseSession.category || null,
+      product: null,
+      handoffRequested: true,
+    });
+
+    return toPayloads(to, buildHumanMessages(null));
+  }
+
+  const activeProduct = baseSession.product ? getProductById(baseSession.product) : null;
 
   if (!activeProduct) {
     resetSession(to);
-
-    return [mainMenu()].map((item) =>
-      toOutboundPayload({
-        to,
-        message: item,
-      }),
-    );
+    return toPayloads(to, [mainMenu()]);
   }
 
   if (detectedIntent.type === 'product_action' && detectedIntent.value === 'specs') {
     saveSession(to, {step: 'specs'});
-
-    return buildSpecsMessages(activeProduct).map((item) =>
-      toOutboundPayload({
-        to,
-        message: item,
-      }),
-    );
+    return toPayloads(to, buildSpecsMessages(activeProduct));
   }
 
   if (detectedIntent.type === 'product_action' && detectedIntent.value === 'pricing') {
     saveSession(to, {step: 'pricing'});
+    return toPayloads(to, buildPricingMessages(activeProduct));
+  }
 
-    return buildPricingMessages(activeProduct).map((item) =>
-      toOutboundPayload({
-        to,
-        message: item,
-      }),
-    );
+  if (detectedIntent.type === 'product_action' && detectedIntent.value === 'compare') {
+    const category = getCategoryById(activeProduct.category);
+    return toPayloads(to, [categoryMenu(category)]);
   }
 
   if (detectedIntent.type === 'decision' && detectedIntent.value === 'order') {
@@ -274,12 +382,7 @@ export const runFlow = ({to, message}) => {
       },
     });
 
-    return buildOrderMessages(activeProduct).map((item) =>
-      toOutboundPayload({
-        to,
-        message: item,
-      }),
-    );
+    return toPayloads(to, buildOrderMessages(activeProduct));
   }
 
   if (detectedIntent.type === 'decision' && detectedIntent.value === 'human') {
@@ -288,18 +391,8 @@ export const runFlow = ({to, message}) => {
       handoffRequested: true,
     });
 
-    return buildHumanMessages(activeProduct).map((item) =>
-      toOutboundPayload({
-        to,
-        message: item,
-      }),
-    );
+    return toPayloads(to, buildHumanMessages(activeProduct));
   }
 
-  return buildFallbackMessages(baseSession).map((item) =>
-    toOutboundPayload({
-      to,
-      message: item,
-    }),
-  );
+  return toPayloads(to, buildFallbackMessages(activeProduct));
 };

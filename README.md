@@ -16,12 +16,12 @@ Subscribed field: messages
 
 ## Current Flow
 
-Any normal user message opens a single list-based product inquiry menu.
+Any normal user message opens a guided catalog menu.
 
 ```text
-List menu
+Catalog menu
 -> Gaming PCs
--> Headphones
+-> Audio products
 -> Talk to sales
 ```
 
@@ -47,6 +47,12 @@ Users can type these instead of clicking buttons:
 pc
 gaming pc
 headphones
+earbuds
+open ear
+anker
+p20i
+bone conduction
+truefree
 specs
 price
 order
@@ -75,7 +81,7 @@ api/lib/
 
 Backend modules:
 
-- `catalog.js` product data and ranges
+- `catalog.js` product data, media URLs, and audio catalog entries
 - `intent.js` message and button intent detection
 - `session-store.js` session state per phone number
 - `flow-engine.js` flow routing and reply generation
@@ -93,6 +99,9 @@ Local secret file. It is ignored by git and must not be committed.
 api/
   webhook.js
   lib/
+anker-p20i.jpg
+open-ear-bone-conduction.jpg
+truefree-open-ear.jpg
 assets/
   headphones.jpg
 docs/
@@ -126,7 +135,7 @@ The v1 backend stores:
 ```text
 flow = product_inquiry
 step = start | product_selected | specs | pricing | order_capture | human_handoff
-product = pc | headphones
+product = pc | anker_p20i | bone_conduction_open_ear | truefree_open_ear
 ```
 
 Current limitation:

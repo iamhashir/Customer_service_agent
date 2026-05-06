@@ -4,6 +4,7 @@ const buildDefaultSession = (phone) => ({
   phone,
   flow: 'product_inquiry',
   step: 'start',
+  category: null,
   product: null,
   handoffRequested: false,
   orderDraft: null,
