@@ -23,7 +23,14 @@ export const detectIntent = (message) => {
     return {type: 'product', value: 'pc'};
   }
 
-  if (text.includes('headphone') || text.includes('headset') || text.includes('earphone')) {
+  if (
+    text.includes('headphone') ||
+    text.includes('headphones') ||
+    text.includes('headset') ||
+    text.includes('earphone') ||
+    text.includes('sony') ||
+    text.includes('xm5')
+  ) {
     return {type: 'product', value: 'headphones'};
   }
 
