@@ -1,101 +1,35 @@
-# Meta WhatsApp Webhook
+# Customer Service Agent — WhatsApp Sales Automation
 
-Vercel webhook for the Meta WhatsApp Cloud API.
+A production-oriented WhatsApp Cloud API integration that handles guided product discovery, intent routing, conversational state, and human handoff.
 
-It receives WhatsApp messages, detects guided sales intents, and sends the next step in a product inquiry funnel.
+The project demonstrates **API integration, stateful conversation design, serverless deployment, modular backend architecture, and operational debugging**.
 
-## Live Webhook
+---
 
-Use this in Meta Developers:
+## What It Does
 
-```text
-Callback URL: https://meta-setup.vercel.app/api/webhook
-Verify token: mytoken
-Subscribed field: messages
-```
-
-## Current Flow
-
-Any normal user message opens a guided premium catalog menu.
+Incoming WhatsApp messages are processed through a guided sales flow:
 
 ```text
-Catalog menu
--> Gaming PCs
--> Audio Collection
--> Talk to Specialist
+Customer message
+→ intent detection
+→ conversation router
+→ product/category flow
+→ structured WhatsApp response
+→ optional human handoff
 ```
 
-The webhook keeps a lightweight in-memory session per phone number so the next reply can be routed by `flow`, `step`, and `product`.
-It also serializes outbound sends per contact so multi-part replies arrive in the intended order.
+Current product flows include:
 
-## Contact Button
+- Gaming PCs
+- Audio products
+- Product specifications
+- Pricing and ordering
+- Human specialist handoff
 
-Product steps are designed to avoid message spam:
+---
 
-```text
-1. Optional hero image for the selected product
-2. One structured product card with premium action labels
-```
-
-Human handoff keeps a separate CTA URL button to `https://magnotek.vercel.app`.
-
-## Text Shortcuts
-
-Users can type these instead of clicking buttons:
-
-```text
-pc
-gaming pc
-headphones
-earbuds
-open ear
-anker
-p20i
-bone conduction
-truefree
-specs
-price
-order
-human
-agent
-menu
-hi
-```
-
-## Runtime Files
-
-```text
-api/webhook.js
-```
-
-Main serverless function:
-
-- `GET /api/webhook` verifies Meta webhook setup.
-- `POST /api/webhook` receives WhatsApp events.
-- `value.messages` triggers the flow engine.
-- `value.statuses` is logged but ignored.
-
-```text
-api/lib/
-```
-
-Backend modules:
-
-- `content/` centralized categories, products, labels, and recommendation data
-- `conversation/` router, dispatcher, and focused handlers
-- `intent/detect.js` domain intent detection
-- `renderers/` platform-agnostic UI node builders
-- `session/store.js` session state per phone number
-- `transport/whatsapp/` mapper, limits, and sender
-- `flow-engine.js` orchestration only
-
-```text
-api/.env
-```
-
-Local secret file. It is ignored by git and must not be committed.
-
-## Project Structure
+## Architecture
 
 ```text
 api/
@@ -106,124 +40,130 @@ api/
     intent/
     renderers/
     session/
-    transport/
+    transport/whatsapp/
     flow-engine.js
-assets/
-  anker-p20i.jpg
-  headphones.jpg
-  open-ear-bone-conduction.jpg
-  true-nort-hypervault-obsidian-white-pc.jpg
-  truefree-open-ear.jpg
-docs/
-  ARCHITECTURE_PIPELINE.md
-  architecture.md
-  state-machine.md
-  deploy.md
-  env_change_deploy.md
-README.md
 ```
 
-Use `docs/` for deployment notes and operational runbooks. Keep the root limited to core folders and top-level project metadata.
+### Main responsibilities
 
-Architecture reading order:
+- **Webhook layer** — verifies Meta webhook requests and receives WhatsApp events
+- **Intent layer** — identifies user intent from messages and shortcuts
+- **Conversation layer** — routes the current flow and step
+- **Renderers** — build platform-agnostic response nodes
+- **WhatsApp transport** — maps response nodes to Meta payloads and sends them
+- **Session store** — tracks conversational state per contact
+- **Flow engine** — coordinates the interaction without owning presentation details
 
-- `docs/architecture.md`
-- `docs/state-machine.md`
-- `docs/CURRENT_MESSAGE_FLOW.md`
-- `docs/deploy.md`
+---
 
-## Environment Variables
+## Conversation State
 
-Required in Vercel production:
+The current state model tracks:
+
+```text
+flow
+step
+category
+product
+shopperNeed
+```
+
+Example flow:
+
+```text
+product_inquiry
+→ category_audio
+→ product_selected
+→ specs
+→ pricing
+→ order_capture
+→ human_handoff
+```
+
+This keeps routing explicit and makes the conversation easier to extend without turning the webhook into one large conditional block.
+
+---
+
+## Engineering Decisions
+
+### Structured response pipeline
+
+Responses are generated in two stages:
+
+```text
+handlers
+→ UI nodes
+→ WhatsApp mapper
+→ Meta payloads
+```
+
+This separates business logic from platform-specific payload construction.
+
+### Ordered outbound messages
+
+Outbound sends are serialized per contact so multi-part responses arrive in the intended order.
+
+### Modular content
+
+Product data, labels, categories, and recommendations are kept outside the webhook handler so conversation logic does not duplicate content.
+
+---
+
+## Current Production Limitation
+
+Session state is currently stored in memory.
+
+That works for a lightweight demo, but serverless cold starts or multiple instances can reset or split conversational state. A production version should move session storage to a shared service such as **Redis or PostgreSQL**.
+
+Documenting this limitation is intentional: the current architecture is suitable for demonstrating the flow, while the next production step is clear.
+
+---
+
+## Deployment
+
+The webhook is designed for Vercel serverless deployment and the Meta WhatsApp Cloud API.
+
+Required environment variable:
 
 ```text
 WHATSAPP_ACCESS_TOKEN
 ```
 
-Optional:
+Optional configuration includes the webhook verification token and Meta Graph API version.
 
-```text
-WHATSAPP_VERIFY_TOKEN=mytoken
-WHATSAPP_GRAPH_VERSION=v25.0
+Secrets are expected to remain in environment configuration and are not committed to the repository.
+
+---
+
+## Local Validation
+
+Check the main webhook and backend modules before deployment:
+
+```bash
+node --check api/webhook.js
 ```
 
-## State Model
+Then validate files under `api/lib/` and deploy through the configured Vercel project.
 
-The v1 backend stores:
+---
 
-```text
-flow = product_inquiry
-step = start | category_* | product_selected | specs | pricing | order_capture | human_handoff
-category = computing | audio
-product = pc | anker_p20i | bone_conduction_open_ear | truefree_open_ear
-shopperNeed = null | gym | running | calls | travel | bass
-```
+## What This Project Demonstrates
 
-Conversation output is now built in two stages:
+- Third-party API integration
+- Webhook design
+- Conversation state machines
+- Intent routing
+- Modular Node.js architecture
+- Serverless deployment
+- Production trade-off awareness
+- Human-in-the-loop automation
 
-```text
-handlers -> UI nodes -> WhatsApp mapper -> payloads
-```
+---
 
-Current limitation:
+## Author
 
-- Session storage is in-memory only.
-- On a cold start or scale-out instance, session state can reset.
-- Production should move this to Redis, Postgres, or another shared store.
+**Malik Hashir** — Software Engineer, Full-Stack / AI Automation / Systems
 
-Check Vercel env:
-
-```powershell
-vercel env ls
-```
-
-## Deploy
-
-Run from this folder:
-
-```powershell
-cd C:\Users\ihash\Desktop\CSA-Demo
-vercel --prod --yes
-```
-
-Production URL:
-
-```text
-https://meta-setup.vercel.app/api/webhook
-```
-
-## Logs
-
-```powershell
-vercel logs https://meta-setup.vercel.app --no-follow --since 10m --expand --no-branch
-```
-
-Successful outbound messages show:
-
-```text
-WhatsApp flow sent
-```
-
-Send failures show:
-
-```text
-WhatsApp flow failed
-```
-
-## Update Workflow
-
-1. Edit `api/webhook.js`.
-2. Check syntax:
-
-```powershell
-node --check api\webhook.js
-Get-ChildItem api\lib -Recurse -Filter *.js | ForEach-Object { node --check $_.FullName }
-```
-
-3. Deploy:
-
-```powershell
-vercel --prod --yes
-```
-
-4. Send a WhatsApp test message and check logs.
+- [GitHub](https://github.com/iamhashir)
+- [Portfolio](https://cv-portfolio-five.vercel.app)
+- [LinkedIn](https://linkedin.com/in/malikhashir)
