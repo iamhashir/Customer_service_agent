@@ -1,64 +1,84 @@
-# Customer Service Agent — WhatsApp Sales Automation
+# Customer Service Agent — WhatsApp Conversation Automation
 
-A production-oriented WhatsApp Cloud API integration that handles guided product discovery, intent routing, conversational state, and human handoff.
+A Node.js integration for the **Meta WhatsApp Cloud API** that routes incoming customer messages through explicit conversation state, structured product flows, response rendering, and optional human handoff.
 
-The project demonstrates **API integration, stateful conversation design, serverless deployment, modular backend architecture, and operational debugging**.
+The project is intentionally small at the transport layer: the webhook receives Meta events, then delegates intent detection, session state, conversation dispatch, UI-node rendering, and outbound message delivery to separate modules.
 
----
-
-## What It Does
-
-Incoming WhatsApp messages are processed through a guided sales flow:
+## Request flow
 
 ```text
-Customer message
-→ intent detection
-→ conversation router
-→ product/category flow
-→ structured WhatsApp response
-→ optional human handoff
+WhatsApp webhook event
+        ↓
+api/webhook.js
+        ↓
+flow engine
+        ↓
+load contact session
+        ↓
+intent detection
+        ↓
+conversation dispatcher
+        ↓
+UI response nodes
+        ↓
+WhatsApp payload mapper
+        ↓
+per-contact delivery queue
+        ↓
+Meta Graph API
 ```
 
-Current product flows include:
+## What is implemented
 
-- Gaming PCs
-- Audio products
-- Product specifications
-- Pricing and ordering
-- Human specialist handoff
-
----
+- Meta webhook verification through `hub.mode`, `hub.verify_token`, and `hub.challenge`
+- Incoming WhatsApp message extraction from webhook events
+- Explicit conversation session state per contact
+- Intent detection before route dispatch
+- Main-menu/session reset handling
+- Product/category conversation flows
+- Product specifications and pricing paths
+- Order-draft / handoff-oriented session fields
+- Platform-independent UI response nodes before WhatsApp payload conversion
+- Per-contact serialized outbound delivery so multi-part responses retain order
+- Configurable Meta Graph API version
+- Environment-based WhatsApp access token
 
 ## Architecture
 
 ```text
 api/
-  webhook.js
-  lib/
-    content/
-    conversation/
-    intent/
-    renderers/
-    session/
-    transport/whatsapp/
-    flow-engine.js
+├─ webhook.js
+└─ lib/
+   ├─ content/                  product/category content
+   ├─ conversation/             routing + conversation handlers
+   ├─ intent/                   message intent detection
+   ├─ renderers/                response-node construction
+   ├─ session/                  contact state
+   ├─ transport/whatsapp/       payload mapping + Graph API sender
+   └─ flow-engine.js            orchestration
 ```
 
-### Main responsibilities
+### Webhook layer
 
-- **Webhook layer** — verifies Meta webhook requests and receives WhatsApp events
-- **Intent layer** — identifies user intent from messages and shortcuts
-- **Conversation layer** — routes the current flow and step
-- **Renderers** — build platform-agnostic response nodes
-- **WhatsApp transport** — maps response nodes to Meta payloads and sends them
-- **Session store** — tracks conversational state per contact
-- **Flow engine** — coordinates the interaction without owning presentation details
+`api/webhook.js` handles the Meta subscription handshake and incoming POST events. For each message it calls the flow engine and queues the resulting outbound payloads.
 
----
+### Flow engine
 
-## Conversation State
+`api/lib/flow-engine.js` coordinates the application flow:
 
-The current state model tracks:
+```text
+message
+  → getSession(contact)
+  → detectIntent(message, session)
+  → dispatch(intent, session, message)
+  → mapUiToOutboundPayloads(...)
+```
+
+A navigation-to-main-menu intent resets the session before redispatching.
+
+### Session model
+
+The current in-memory session tracks fields including:
 
 ```text
 flow
@@ -66,104 +86,54 @@ step
 category
 product
 shopperNeed
+handoffRequested
+orderDraft
+lastUpdatedAt
 ```
 
-Example flow:
+This makes conversation state explicit rather than inferring it from the latest message alone.
 
-```text
-product_inquiry
-→ category_audio
-→ product_selected
-→ specs
-→ pricing
-→ order_capture
-→ human_handoff
-```
+### Ordered outbound delivery
 
-This keeps routing explicit and makes the conversation easier to extend without turning the webhook into one large conditional block.
+The WhatsApp sender maintains a promise chain per `phoneNumberId:contact` key. Multiple response payloads for the same contact are therefore sent sequentially instead of racing each other.
 
----
+That matters for guided flows where a text explanation, list/button payload, and follow-up message must arrive in a predictable order.
 
-## Engineering Decisions
+## Current limitation
 
-### Structured response pipeline
+Session persistence is currently an in-process JavaScript `Map`.
 
-Responses are generated in two stages:
+That is fine for demonstrating and testing the conversation engine, but it is **not durable across serverless cold starts or multiple instances**. A deployed multi-instance version should move session state to a shared store such as Redis or PostgreSQL.
 
-```text
-handlers
-→ UI nodes
-→ WhatsApp mapper
-→ Meta payloads
-```
+The delivery queue is likewise process-local.
 
-This separates business logic from platform-specific payload construction.
+## Configuration
 
-### Ordered outbound messages
-
-Outbound sends are serialized per contact so multi-part responses arrive in the intended order.
-
-### Modular content
-
-Product data, labels, categories, and recommendations are kept outside the webhook handler so conversation logic does not duplicate content.
-
----
-
-## Current Production Limitation
-
-Session state is currently stored in memory.
-
-That works for a lightweight demo, but serverless cold starts or multiple instances can reset or split conversational state. A production version should move session storage to a shared service such as **Redis or PostgreSQL**.
-
-Documenting this limitation is intentional: the current architecture is suitable for demonstrating the flow, while the next production step is clear.
-
----
-
-## Deployment
-
-The webhook is designed for Vercel serverless deployment and the Meta WhatsApp Cloud API.
-
-Required environment variable:
+Required for outbound messages:
 
 ```text
 WHATSAPP_ACCESS_TOKEN
 ```
 
-Optional configuration includes the webhook verification token and Meta Graph API version.
+Optional:
 
-Secrets are expected to remain in environment configuration and are not committed to the repository.
-
----
-
-## Local Validation
-
-Check the main webhook and backend modules before deployment:
-
-```bash
-node --check api/webhook.js
+```text
+WHATSAPP_VERIFY_TOKEN
+WHATSAPP_GRAPH_VERSION
 ```
 
-Then validate files under `api/lib/` and deploy through the configured Vercel project.
+The Graph API version defaults in code when no override is supplied.
 
----
+## Engineering focus
 
-## What This Project Demonstrates
+This repository demonstrates:
 
-- Third-party API integration
-- Webhook design
-- Conversation state machines
-- Intent routing
-- Modular Node.js architecture
-- Serverless deployment
-- Production trade-off awareness
-- Human-in-the-loop automation
+- third-party webhook/API integration
+- explicit conversational state machines
+- separation between business flow and transport payloads
+- modular intent + dispatcher architecture
+- ordered asynchronous message delivery
+- human-handoff-ready session state
+- clear identification of serverless persistence boundaries
 
----
-
-## Author
-
-**Malik Hashir** — Software Engineer, Full-Stack / AI Automation / Systems
-
-- [GitHub](https://github.com/iamhashir)
-- [Portfolio](https://cv-portfolio-five.vercel.app)
-- [LinkedIn](https://linkedin.com/in/malikhashir)
+It is a conversation-engine / API integration project, not an LLM chatbot wrapper.
